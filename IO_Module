@@ -1,0 +1,50 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Wed May  8 19:06:52 2019
+
+@author: Pavan Yellapu
+"""
+
+# Learning io operations using io package
+
+import io
+
+#this is a stream of bytes
+j = io.BytesIO(b'This is initial data: \x00\x01') 
+
+#.getvalue() reads and give the data in the buffer
+#in this example buffer 'j'
+print (j.getvalue())
+
+# Ways of writing to buffer 
+k = io.StringIO('Hey!!! This is initial Data \n')
+print (k.getvalue())
+# or use .write method
+# note: the data written below would override the initial data
+k.write('Written from write method')
+print (k.getvalue())
+
+# getvalue and read does the same thing -- fetch the data
+# read reads the data from the current position in the buffer
+# getvalue reads the data from the starting
+
+# to use read, make sure to reset the position to starting 
+# else you may end up reading partial data or blank (if it is already at end)
+# note that after writing some data to buffer using write, the cursor position
+# would be at the end. so, after write, if you read immediately, you would get blank
+
+# resetting the cursor position to starting
+k.seek(0)
+print (k.read()) #alternatily can use readline/readlines as well
+
+l = k.read()
+print (l)
+
+h = k.getvalue()
+print (h)
+
+# closing the buffer
+k.close()
+
+# since the buffer is closed here, we will get error upon fetch
+print (k.getvalue())
