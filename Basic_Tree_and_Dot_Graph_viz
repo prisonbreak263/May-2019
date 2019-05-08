@@ -1,0 +1,77 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Wed May  8 08:16:59 2019
+
+@author: Pavan Yellapu
+"""
+
+import os 
+import io # for input output operations
+import pydot # if we need to use any external .exe files 
+import pandas as pd #for dataframes
+from sklearn import tree
+
+# read the titanic training data using pandas module
+titanic_train = pd.read_csv(<Training Data file name here in quotes>)
+
+titanic_train.info() #gives the information of columns
+titanic_train.shape  # gives the rows X columns 
+titanic_train.describe() #gives the mean, max, min etc.., on the numerical data
+
+####################################################################
+# Decision tree accepts data as                                    #
+#       Input data on X axis                                       #
+#       Output data on Y axis                                      #
+#           So, define 2 varaible for input cols and out cols      #
+####################################################################
+
+# input cols for decision tree
+x_train = titanic_train[['Parch','SibSp']]
+
+#output cols for decision tree
+y_train = titanic_train['Survived']
+
+############################################################################
+# Building the Desicion Tree                                               #
+# in Tree Module, DecisionTreeClassifier.Fit(x,y) builds the decision tree #
+############################################################################
+dt = tree.DecisionTreeClassifier()
+dt.fit(x_train,y_train)
+
+#visualizing the decision tree
+
+# Create an empty buffer 
+# Here we are using StringIO from IO Module
+objStringIO = io.StringIO() # An empty buffer is created
+
+# export_graphviz method exports the Decision tree to DOT data
+#
+# In the Below statement,
+#   dt --> is our Decision Tree
+#   out_file=objStringIO --> this buffer now contains DOT data
+#   feature_names --> this is the columns in the Decision Tree
+
+tree.export_graphviz(dt,out_file=objStringIO,feature_names=x_train.columns)
+
+# graph_from_dot_data creates graph using the above created dot data
+# objStringIO.getvalue() --> fetches the data from the buffer
+# This returns the output in a list format. 
+#      So, get the [0] value for the graph object
+file1 = pydot.graph_from_dot_data(objStringIO.getvalue())[0]
+
+os.getcwd() #information on what the current working directory is
+
+# write the graph on a pdf file
+file1.write_pdf('new_pdf.pdf') # some new pdf file name for the graph
+
+titanic_test = pd.read_csv(<training data file name in quotes>)
+
+# Predict the outcome based on the tree built above on the test data
+
+x_test = titanic_test[['Parch','SibSp']]
+titanic_test['Survived'] = dt.predict(x_test)
+# write the prediction outcome to output file
+titanic_test.to_csv('Overall_result.csv',columns=['PassengerId','Survived'], index = False)
+
+
+
