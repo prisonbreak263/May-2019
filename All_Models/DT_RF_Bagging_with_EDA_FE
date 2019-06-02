@@ -1,0 +1,207 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Sun Jun  2 09:08:37 2019
+
+@author: YellapuP
+"""
+
+import os
+import pandas as pd
+from sklearn import tree
+from sklearn import model_selection
+from sklearn import ensemble
+
+os.getcwd()
+os.chdir(<Folder Name Here>)
+os.listdir()
+t_train = pd.read_csv('train_data.csv')
+t_test = pd.read_csv('test.csv')
+t_test['Survived'] = None
+titanic = pd.concat([t_train,t_test],axis=0)
+titanic.shape
+titanic.info()
+
+#EDA
+# AGE, FARE HAS MISSING DATA. FILL THEM WITH MEAN VALUES.
+# Extract Title from Name column
+
+# Title
+
+def extract_title(name):
+    return name.split(',')[1].split('.')[0].strip()
+
+titanic ['Title'] = titanic['Name'].map(extract_title)
+titanic.info()
+
+# age
+
+titanic['Age'][titanic['Age'].isnull()] = titanic['Age'].mean()
+
+titanic.info()
+
+# Fare
+
+titanic['Fare'][titanic['Fare'].isnull()] = titanic['Fare'].mean()
+titanic.info()
+
+# Embarked
+
+titanic['Embarked'][titanic['Embarked'].isnull()] = titanic['Embarked'].mode().tolist()
+titanic.info()
+
+# Feature Engineering
+
+# Converting the Categorical Columns to Numeric columns
+
+# convert age to categorical
+
+def age_convert(age):
+    if age >= 0 and age < 10:
+        return 'Child'
+    elif age < 25:
+        return 'Young'
+    elif age < 50:
+        return 'Middle'
+    else:
+        return 'Old'
+    
+titanic['Age_cat'] = titanic['Age'].map(age_convert)
+titanic.info()
+
+# combine the SibSp and Parch
+
+titanic ['Family_Size'] = titanic['SibSp'] + titanic['Parch'] + 1
+titanic.info()
+
+titanic['Family_Size'].max()
+
+# convert family size to Categorical
+
+def fam_size_convert(fam):
+    if fam == 1:
+        return 'Single'
+    elif fam <= 3:
+        return 'Small'
+    elif fam <= 5:
+        return 'Medium'
+    else:
+        return 'Large'
+
+titanic['Family_Size_Cat'] = titanic['Family_Size'].map(fam_size_convert)
+titanic.info()
+
+titanic['Fare'].describe()
+
+def fare_cat(fare):
+    if fare >= 0 and fare <= 8:
+        return 'Silver'
+    elif fare <= 32:
+        return 'Gold'
+    else:
+        return 'Platinum'
+
+titanic['Fare_Group'] = titanic['Fare'].map(fare_cat)
+titanic.info()
+    
+
+# One Hot Encoding to convert Categorical cols to Numerical
+
+# Embarked, Pclass, Sex, Age_Cat, Family_Size_Cat, Title, Fare_Group are categorical
+
+titanic1 = pd.get_dummies(titanic,columns=['Embarked', 'Pclass', 'Sex', 'Age_cat', 
+                                          'Family_Size_Cat', 'Title', 'Fare_Group'])
+
+titanic1.info()
+titanic1.shape
+
+t1_train = titanic1.iloc[0:t_train.shape[0]]
+t1_train.info()
+t1_test = titanic1.iloc[t_train.shape[0]:titanic1.shape[0]]
+t1_test.info()
+
+t1_train.info()
+
+x_train = t1_train.drop(['Age','Cabin','Fare','Name','Parch','PassengerId','SibSp',
+                        'Survived','Ticket','Family_Size'],axis=1)
+
+y_train = t_train['Survived']
+
+x_test = t1_test.drop(['Age','Cabin','Fare','Name','Parch','PassengerId','SibSp',
+                        'Survived','Ticket','Family_Size'],axis=1)
+
+
+# ---------------- Data Preparation/Sanitization Done --------------------- #
+
+# Plain Decision Tree
+
+dt = tree.DecisionTreeClassifier(random_state=1)
+
+# Model 1 - Plain Decision Tree with CV only
+
+M1 = model_selection.cross_val_score(dt,x_train,y_train,cv=10)
+
+M1_score = M1.mean()
+print (M1_score)
+
+dt.fit(x_train,y_train)
+
+# Model 2 - Decision Tree with CV and other Parameters
+
+grid_parms_dt = {'max_depth':[2,5,7],'min_samples_split':[2,5,9],'criterion':['gini','entropy']}
+
+M2 = model_selection.GridSearchCV(dt,grid_parms_dt,cv = 10,n_jobs = 5)
+
+M2.fit(x_train,y_train)
+
+print (M2.best_estimator_)
+print (M2.best_score_)
+print (M2.score(x_train,y_train))
+
+# ------------------------- Feature Importance ----------------------------#
+
+M2_fi = pd.DataFrame({'features':x_train.columns,'importance':M2.best_estimator_.feature_importances_})
+# print (M2_fi.sort_values(str,ascending=False)) -- check how to sort the values ascending
+
+# -------------------------- Ensembles ------------------------------------#
+# --------------------------- BAgging -------------------------------------#
+
+# Model 3 - Plain BAgging Classifier
+
+M3 = ensemble.BaggingClassifier(base_estimator=dt,n_estimators=10)
+
+M3.fit(x_train,y_train)
+M3.score(x_train,y_train)
+
+# Model 4 - BAgging Classifier with Parms
+
+M4 = ensemble.BaggingClassifier(base_estimator=dt,n_estimators=10,random_state=10)
+
+grid_parms_bag = {'base_estimator__max_depth':[2,5,9],
+                  'base_estimator__min_samples_split':[2,5,8],
+                  'base_estimator__criterion':['gini','entropy'],
+                  'max_features':[27]} 
+
+M4_grid = model_selection.GridSearchCV(M4,grid_parms_bag,cv=10)
+
+M4_grid.fit(x_train,y_train)
+
+print (M4_grid.best_estimator_)
+print (M4_grid.best_score_)
+print (M4_grid.score(x_train,y_train))
+
+# Model 5 - Random Forest with Parameters
+ensemble.RandomForestClassifier()
+
+M5 = ensemble.RandomForestClassifier(max_features=27,n_estimators=10,random_state=1)
+
+grid_parms_rf = {'min_samples_split':[2,5,9],
+                 'criterion':['gini','entropy'],
+                 'max_depth':[2,6,10]}
+
+M5_grid = model_selection.GridSearchCV(M5,grid_parms_rf,cv=15,n_jobs=5)
+M5_grid.fit(x_train,y_train)
+
+print (M5_grid.best_estimator_)
+print (M5_grid.best_score_)
+print (M5_grid.score(x_train,y_train))
+
